@@ -143,8 +143,10 @@ Object.assign(THREE.PlaneBufferGeometry.prototype, {
 		
 		if (analyser){
 			var ar = analyser.getFrequencyData();
-			for (let i = 0; i < vawe.attributes.position.count; i++) {
-				vawe.attributes.position.setY(i, ar[i] / 100);
+			for (let y = 0; y < 2; y++){
+				for (let i = 0; i < vawe.attributes.position.count; i++) {
+					vawe.attributes.position.setY( y * 63 + i, ar[i] / 10);
+				}
 			}
 			vawe.attributes.position.needsUpdate = true;
 		}
