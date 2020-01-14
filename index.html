@@ -117,7 +117,7 @@ Object.assign(THREE.PlaneBufferGeometry.prototype, {
         var listener = new THREE.AudioListener();
         var audio = new THREE.Audio(listener);
 
-        var mediaElement = new Audio('sounds/' + path);
+        var mediaElement = new Audio(path);
 
         mediaElement.loop = false;
 		mediaElement.play();
