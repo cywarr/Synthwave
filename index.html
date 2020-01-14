@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Synthwave</title>
+
+    <style>
+        body {
+            margin: 0;
+            background: rgb(85,60,160);
+            font-family: 'Futura PT Book', sans-serif;
+            font-weight: 900;
+            overflow: hidden;
+            line-height: 45px;
+            background: linear-gradient(107deg, rgba(85,60,160,1) 0%, rgba(122,7,55,1) 100%);
+        }
+        canvas { width: 100%; height: 100% }
+    </style>
+</head>
+<body>
+<button id="play">Play</button>
+
+<script src="https://threejs.org/build/three.min.js"></script>
+<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+
+<script>
+Object.assign(THREE.PlaneBufferGeometry.prototype, {
+    toGrid: function() {
+        let segmentsX = this.parameters.widthSegments || 1;
+        let segmentsY = this.parameters.heightSegments || 1;
+        let indices = [];
+        for (let i = 0; i < segmentsY + 1; i++) {
+            let index11 = 0;
+            let index12 = 0;
+            for (let j = 0; j < segmentsX; j++) {
+                index11 = (segmentsX + 1) * i + j;
+                index12 = index11 + 1;
+                let index21 = index11;
+                let index22 = index11 + (segmentsX + 1);
+                indices.push(index11, index12);
+                if (index22 < ((segmentsX + 1) * (segmentsY + 1) - 1)) {
+                    indices.push(index21, index22);
+                }
+            }
+            if ((index12 + segmentsX + 1) <= ((segmentsX + 1) * (segmentsY + 1) - 1)) {
+                indices.push(index12, index12 + segmentsX + 1);
+            }
+        }
+        this.setIndex(indices);
+        return this;
+    }
+});
+</script>
+
+<script>
+    var scene, camera, renderer, light, controls, particle, analyser, vawe;
+
+    // lights
+    function initLights(){
+        // light = new THREE.HemisphereLight(0x5c3491, 0x711655, 1);
+        light = new THREE.AmbientLight(0x00acea);
+        scene.add(light);
+    }
+
+    // helpers
+    function initHelpers(){
+        controls = new THREE.OrbitControls( camera, renderer.domElement );
+        camera.position.set(0, 0.2, 15);
+        controls.update();
+    }
+
+    function init(){
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+
+        renderer.setPixelRatio((window.devicePixelRatio) ? window.devicePixelRatio : 1);
+        renderer.setSize( window.innerWidth, window.innerHeight );
+        renderer.autoClear = false;
+        renderer.setClearColor(0x000000, 0.0);
+
+        document.body.appendChild( renderer.domElement );
+
+        particle = new THREE.Object3D();
+        scene.add(particle);
+
+        var geometry = new THREE.SphereGeometry(1, 1, 1);
+        var material = new THREE.MeshPhongMaterial({
+            color: 0xffffff,
+            shading: THREE.FlatShading
+        });
+
+        for (var i = 0; i < 1000; i++) {
+            var mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+            mesh.position.multiplyScalar(500 + (Math.random() * 700));
+            mesh.rotation.set(Math.random() * 2, Math.random() * 2, Math.random() * 2);
+            particle.add(mesh);
+        }
+
+        initLights();
+        initHelpers();
+        loadWave();
+
+        
+
+    }
+
+	play.addEventListener("click", event => {
+		audioDecoder('Komet.mp3');
+	});
+
+    function audioDecoder(path) {
+        var listener = new THREE.AudioListener();
+        var audio = new THREE.Audio(listener);
+
+        var mediaElement = new Audio('sounds/' + path);
+
+        mediaElement.loop = false;
+		mediaElement.play();
+		
+        audio.setMediaElementSource(mediaElement);
+
+        analyser = new THREE.AudioAnalyser(audio, 128);
+
+        var bufferLength = analyser.frequencyBinCount;
+        var dataArray = new Uint8Array(bufferLength);
+    }
+
+    function loadWave(){
+
+        vawe = new THREE.PlaneBufferGeometry(30, 1, 63, 1).toGrid();
+        vawe.rotateX(-Math.PI * 0.5);
+        var plane = new THREE.LineSegments(vawe, new THREE.MeshBasicMaterial({
+            color: 0x00acea
+        }));
+        plane.position.z = -5;
+        scene.add(plane);
+
+        var points = new THREE.Points(vawe, new THREE.PointsMaterial({
+            size: 0.01,
+            color: 0x00acea
+        }));
+        points.position.z = -5;
+        scene.add(points);
+
+    }
+
+    var animate = function () {
+        requestAnimationFrame( animate );
+        particle.rotation.y += 0.001;
+        controls.update();
+        render();
+    };
+
+    function render(){
+        renderer.render( scene, camera );
+		
+		if (analyser){
+			var ar = analyser.getFrequencyData();
+			for (let i = 0; i < vawe.attributes.position.count; i++) {
+				vawe.attributes.position.setY(i, ar[i] / 100);
+			}
+			vawe.attributes.position.needsUpdate = true;
+		}
+    }
+
+    init();
+    animate();
+
+</script>
+</body>
+</html>
