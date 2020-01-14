@@ -115,7 +115,7 @@ Object.assign(THREE.PlaneBufferGeometry.prototype, {
 
     function loadWave(){
 
-        vawe = new THREE.PlaneBufferGeometry(30, 1, 63, 1).toGrid();
+        vawe = new THREE.PlaneBufferGeometry(30, 5, 63, 4).toGrid();
         vawe.rotateX(-Math.PI * 0.5);
         var plane = new THREE.LineSegments(vawe, new THREE.MeshBasicMaterial({
             color: 0x00acea
@@ -143,9 +143,9 @@ Object.assign(THREE.PlaneBufferGeometry.prototype, {
 		
 		if (analyser){
 			var ar = analyser.getFrequencyData();
-			for (let y = 0; y < 2; y++){
+			for (let y = 0; y < 5; y++){
 				for (let i = 0; i < vawe.attributes.position.count; i++) {
-					vawe.attributes.position.setY( y * 64 + i, ar[i] / 50);
+					vawe.attributes.position.setY( y * 64 + i, ar[i] / (50 * (y + 1)));
 				}
 			}
 			vawe.attributes.position.needsUpdate = true;
