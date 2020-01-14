@@ -145,7 +145,7 @@ Object.assign(THREE.PlaneBufferGeometry.prototype, {
 			var ar = analyser.getFrequencyData();
 			for (let y = 0; y < 2; y++){
 				for (let i = 0; i < vawe.attributes.position.count; i++) {
-					vawe.attributes.position.setY( y * 63 + i, ar[i] / 10);
+					vawe.attributes.position.setY( y * 64 + i, ar[i] / 50);
 				}
 			}
 			vawe.attributes.position.needsUpdate = true;
