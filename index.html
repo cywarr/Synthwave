@@ -24,6 +24,7 @@
 <button id="play">Play</button>
 
 <script src="https://threejs.org/build/three.min.js"></script>
+<script src="https://threejs.org/examples/js/loaders/OBJLoader.js"></script>
 <script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
 
 <script>
@@ -42,7 +43,7 @@ Object.assign(THREE.PlaneBufferGeometry.prototype, {
                 let index22 = index11 + (segmentsX + 1);
                 indices.push(index11, index12);
                 if (index22 < ((segmentsX + 1) * (segmentsY + 1) - 1)) {
-                    indices.push(index21, index22);
+                    //indices.push(index21, index22); 
                 }
             }
             if ((index12 + segmentsX + 1) <= ((segmentsX + 1) * (segmentsY + 1) - 1)) {
@@ -56,7 +57,14 @@ Object.assign(THREE.PlaneBufferGeometry.prototype, {
 </script>
 
 <script>
-    var scene, camera, renderer, light, controls, particle, analyser, vawe;
+    var scene, camera, renderer, light, controls, particle, analyser, vawe, heart, waveTexture;
+	
+	var pUniforms = {
+		averageWave: { value: 0 }
+	};
+	var wUniforms = {
+		waveData: { value: waveTexture }
+	};
 
     // lights
     function initLights(){
@@ -87,8 +95,7 @@ Object.assign(THREE.PlaneBufferGeometry.prototype, {
         initLights();
         initHelpers();
         loadWave();
-
-        
+		loadHeart();
 
     }
 
@@ -131,6 +138,29 @@ Object.assign(THREE.PlaneBufferGeometry.prototype, {
         scene.add(points);
 
     }
+	
+	function loatHeart(){
+	
+		var loader = new THREE.OBJLoader();
+		loader.load("Love.obj", function( obj ){
+			heart = obj;
+			
+			scene.add(heart);
+			
+			// particles
+			var pos = heart.geometry.position;
+			var sizes = [];
+			for ( let i = 0; i < pos.count; i++ ){
+			
+				sizes.push( Math.random() );
+			
+			}
+			
+			var pointsMat = new THREE.PointsMaterial();
+			
+		}
+	
+	}
 
     var animate = function () {
         requestAnimationFrame( animate );
