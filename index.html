@@ -21,7 +21,7 @@
     </style>
 </head>
 <body>
-<button id="play">Play</button>
+<button id="play" style="position: absolute;">Play</button>
 
 <script src="https://threejs.org/build/three.min.js"></script>
 <script src="https://threejs.org/examples/js/loaders/OBJLoader.js"></script>
@@ -43,7 +43,7 @@ Object.assign(THREE.PlaneBufferGeometry.prototype, {
                 let index22 = index11 + (segmentsX + 1);
                 indices.push(index11, index12);
                 if (index22 < ((segmentsX + 1) * (segmentsY + 1) - 1)) {
-                    //indices.push(index21, index22); 
+                    indices.push(index21, index22); 
                 }
             }
             if ((index12 + segmentsX + 1) <= ((segmentsX + 1) * (segmentsY + 1) - 1)) {
@@ -63,26 +63,29 @@ Object.assign(THREE.PlaneBufferGeometry.prototype, {
 		averageWave: { value: 0 }
 	};
 	var wUniforms = {
-		waveData: { value: waveTexture }
+		waveData: { value: 0 }
 	};
+	var bloomUniforms = {
+		globalBloom: { value: 0 }
+	}
 
     // lights
     function initLights(){
         // light = new THREE.HemisphereLight(0x5c3491, 0x711655, 1);
-        light = new THREE.AmbientLight(0x00acea);
-        scene.add(light);
+        //light = new THREE.AmbientLight(0x00acea);
+        //scene.add(light);
     }
 
     // helpers
     function initHelpers(){
         controls = new THREE.OrbitControls( camera, renderer.domElement );
-        camera.position.set(0, 0.2, 15);
+        camera.position.set(0, 0.3, 22.5);
         controls.update();
     }
 
     function init(){
         scene = new THREE.Scene();
-        camera = new THREE.PerspectiveCamera( 75, window.innerWidth/window.innerHeight, 0.1, 1000 );
+        camera = new THREE.PerspectiveCamera( 60, window.innerWidth/window.innerHeight, 0.1, 1000 );
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
 
         renderer.setPixelRatio((window.devicePixelRatio) ? window.devicePixelRatio : 1);
@@ -114,51 +117,99 @@ Object.assign(THREE.PlaneBufferGeometry.prototype, {
 		
         audio.setMediaElementSource(mediaElement);
 
-        analyser = new THREE.AudioAnalyser(audio, 128);
-
-        var bufferLength = analyser.frequencyBinCount;
-        var dataArray = new Uint8Array(bufferLength);
+        analyser = new THREE.AudioAnalyser(audio, 256);
+		
+		wUniforms.waveData.value = new THREE.DataTexture( analyser.data, 128, 1, THREE.LuminanceFormat )
+		
     }
 
     function loadWave(){
 
-        vawe = new THREE.PlaneBufferGeometry(30, 5, 63, 4).toGrid();
+        vawe = new THREE.PlaneBufferGeometry(30, 5, 256, 4).toGrid();
         vawe.rotateX(-Math.PI * 0.5);
-        var plane = new THREE.LineSegments(vawe, new THREE.MeshBasicMaterial({
+		var waveMat = new THREE.MeshBasicMaterial({
             color: 0x00acea
-        }));
+        });
+		waveMat.onBeforeCompile = function( shader ){
+			
+			shader.uniforms.waveData = wUniforms.waveData;
+			
+			shader.vertexShader = "uniform sampler2D waveData;\n" + shader.vertexShader;
+			
+			//console.log(shader.vertexShader);
+			shader.vertexShader = shader.vertexShader.replace(
+				"#include <begin_vertex>",
+				[
+					"#include <begin_vertex>",
+					"vec2 wUv = uv * 2. - 1.;",
+					"float wData = texture2D( waveData, vec2( abs(wUv.x), 0.0 ) ).r;",
+					"transformed.y = wData * 4. * ((1. - uv.y) * 0.9 + 0.1);"
+				].join("\n")
+			);
+			
+		}
+        var plane = new THREE.LineSegments(vawe, waveMat);
         plane.position.z = -5;
         scene.add(plane);
-
-        var points = new THREE.Points(vawe, new THREE.PointsMaterial({
-            size: 0.01,
-            color: 0x00acea
-        }));
-        points.position.z = -5;
-        scene.add(points);
-
     }
 	
-	function loatHeart(){
+	function loadHeart(){
 	
 		var loader = new THREE.OBJLoader();
 		loader.load("Love.obj", function( obj ){
-			heart = obj;
-			
+		
+			heart = obj.children[ 0 ];
+			heart.scale.setScalar( 0.1 );
+			heart.material = new THREE.MeshBasicMaterial( { color: 0x00acea, wireframe: true } );
+			heart.position.y = -3;
 			scene.add(heart);
 			
 			// particles
-			var pos = heart.geometry.position;
+			//console.log(heart);
+			var pos = heart.geometry.attributes.position;
 			var sizes = [];
 			for ( let i = 0; i < pos.count; i++ ){
 			
-				sizes.push( Math.random() );
+				sizes.push( Math.random() * 0.25 + 0.1 );
+			
+			}
+			heart.geometry.setAttribute("sizes", new THREE.BufferAttribute(new Float32Array(sizes), 1));
+			
+			var pointsMat = new THREE.PointsMaterial({size: 1, color: 0x00acea});
+			pointsMat.onBeforeCompile = function ( shader ) {
+			
+				//console.log( shader.vertexShader );
+				
+				shader.uniforms.averageWave = pUniforms.averageWave;
+				
+				shader.vertexShader = "attribute float sizes;\n" + shader.vertexShader;
+				
+				shader.vertexShader = shader.vertexShader.replace(
+					"gl_PointSize = size;",
+					"gl_PointSize = size * sizes;"
+				);
+				
+				
+				//console.log(shader.fragmentShader);
+				
+				shader.fragmentShader = "uniform float averageWave;\n" + shader.fragmentShader;
+				
+				shader.fragmentShader = shader.fragmentShader.replace(
+					"vec4 diffuseColor = vec4( diffuse, opacity );",
+					[
+						"vec2 pUv = gl_PointCoord - 0.5;",
+						"if (length(pUv) > 0.5) discard;", // shaping function
+						"vec4 diffuseColor = vec4( diffuse, opacity );",
+						"diffuseColor.rgb = mix(diffuseColor.rgb * 0.01, diffuseColor.rgb, averageWave);",
+					].join("\n")
+				);
 			
 			}
 			
-			var pointsMat = new THREE.PointsMaterial();
+			var points = new THREE.Points(heart.geometry, pointsMat);
+			heart.add(points);
 			
-		}
+		});
 	
 	}
 
@@ -172,13 +223,13 @@ Object.assign(THREE.PlaneBufferGeometry.prototype, {
         renderer.render( scene, camera );
 		
 		if (analyser){
-			var ar = analyser.getFrequencyData();
-			for (let y = 0; y < 5; y++){
-				for (let i = 0; i < vawe.attributes.position.count; i++) {
-					vawe.attributes.position.setY( y * 64 + i, ar[i] / (50 * (y + 1)));
-				}
-			}
-			vawe.attributes.position.needsUpdate = true;
+			
+			// heart
+			pUniforms.averageWave.value = (analyser.getAverageFrequency () / 255) + 0.1;
+			
+			// wave
+			analyser.getFrequencyData();
+			wUniforms.waveData.value.needsUpdate = true;
 		}
     }
 
